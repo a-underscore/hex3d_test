@@ -1,0 +1,14 @@
+[package]
+edition = "2024"
+name = "hex3d_test"
+version = "0.1.0"
+
+[dependencies]
+gltf = "1.4.1"
+hex = { path = "../hex" }
+image = "0.25.10"
+morph3d = "0.1.1"
+myth-gltf = "1.4.2"
+num_cpus = "1.17.0"
+obj-rs = "0.7.4"
+rand = "0.10.1"
