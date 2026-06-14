@@ -170,7 +170,7 @@ fn main() {
     rm.add(ModelRenderer);
     rm.add(LightRenderer);
 
-    let world = World::new(em, sm, rm);
+    let world = World::new(em, sm, rm, Vector3::new(1.0, 1.0, 1.0), 0.2);
 
     Context::init(context, ev, world).unwrap();
 }
