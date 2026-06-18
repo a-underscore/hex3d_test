@@ -102,7 +102,7 @@ fn main() {
 
         let light = em.add(true);
 
-        em.add_component(light, Light3::new(Vector3::new(1.0, 1.0, 1.0)));
+        em.add_component(light, Light3::new(Vector3::new(1.0, 1.0, 1.0), 1.0, 256.0));
         em.add_component(
             light,
             Trans3::new(
@@ -111,64 +111,80 @@ fn main() {
                 Vector3::new(1.0, 1.0, 1.0),
             ),
         );
+
+        let light2 = em.add(true);
+
+        em.add_component(light2, Light3::new(Vector3::new(1.0, 1.0, 1.0), 1.0, 256.0));
+        em.add_component(
+            light2,
+            Trans3::new(
+                Vector3::new(-100.0, 100.0, -50.0),
+                Vector3::zeros(),
+                Vector3::new(1.0, 1.0, 1.0),
+            ),
+        );
     }
 
-    {
+    let (vertices, indices) = {
+        let input = BufReader::new(File::open("teapot.obj").unwrap());
+        let obj: obj::Obj<obj::TexturedVertex> = obj::load_obj(input).unwrap();
+
+        let verts = obj
+            .vertices
+            .into_iter()
+            .map(|v| Vertex3 {
+                position: v.position,
+                normal: {
+                    println!("{:?}", v.normal);
+
+                    v.normal
+                },
+                color: <[f32; 4]>::from(Vector4::new(1.0, 1.0, 1.0, 1.0)).into(),
+                uv: Vector2::new(v.texture[0], v.texture[1]).into(),
+            })
+            .collect::<Vec<_>>();
+
+        let inds = obj
+            .indices
+            .into_iter()
+            .map(|i| i as u32)
+            .collect::<Vec<_>>();
+
+        (verts, inds)
+    };
+
+    let model = Model::lighting(
+        &context.read().unwrap(),
+        Mesh::new(&context.read().unwrap(), &vertices, &indices).unwrap(),
+        load_texture(&context.read().unwrap(), "texture.png").unwrap(),
+        Vector4::new(1.0, 1.0, 1.0, 1.0),
+    )
+    .unwrap();
+
+    for i in 0..50_000 {
         let mut em = em.write().unwrap();
         let e = em.add(true);
 
         em.add_component(
             e,
             Trans3::new(
-                Vector3::new(0.0, 0.0, -100.0),
+                Vector3::new(
+                    (5 * rand::random_range(-100..100)) as f32,
+                    (5 * rand::random_range(-100..100)) as f32,
+                    (5 * rand::random_range(-100..100)) as f32 - 100.0,
+                ),
                 Vector3::zeros(),
-                Vector3::new(25.0, 25.0, 25.0),
+                Vector3::new(5.0, 5.0, 5.0),
             ),
         );
 
-        let (vertices, indices) = {
-            let input = BufReader::new(File::open("teapot.obj").unwrap());
-            let obj: obj::Obj<obj::TexturedVertex> = obj::load_obj(input).unwrap();
-
-            let verts = obj
-                .vertices
-                .into_iter()
-                .map(|v| Vertex3 {
-                    position: v.position,
-                    normal: {
-                        println!("{:?}", v.normal);
-
-                        v.normal
-                    },
-                    color: <[f32; 4]>::from(Vector4::new(1.0, 1.0, 1.0, 1.0)).into(),
-                    uv: Vector2::new(v.texture[0], v.texture[1]).into(),
-                })
-                .collect::<Vec<_>>();
-
-            let inds = obj
-                .indices
-                .into_iter()
-                .map(|i| i as u32)
-                .collect::<Vec<_>>();
-
-            (verts, inds)
-        };
-        em.add_component(
-            e,
-            Model::lighting(
-                &context.read().unwrap(),
-                Mesh::new(&context.read().unwrap(), &vertices, &indices).unwrap(),
-                load_texture(&context.read().unwrap(), "texture.png").unwrap(),
-                Vector4::new(1.0, 1.0, 1.0, 1.0),
-            )
-            .unwrap(),
-        );
-    };
+        em.add_component(e, model.clone());
+    }
 
     let mut rm = RendererManager::default();
 
-    rm.add(ModelRenderer);
     rm.add(LightRenderer);
+    // rm.add(ModelRenderer);
 
     let world = World::new(em, sm, rm, Vector3::new(1.0, 1.0, 1.0), 0.2);
 
