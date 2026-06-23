@@ -1,98 +1,73 @@
 {
-  description = "Vulkano Rust project";
+  description = "Vulkano development environment";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+
     rust-overlay = {
       url = "github:oxalica/rust-overlay";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
     flake-utils.url = "github:numtide/flake-utils";
   };
 
-  outputs = { self, nixpkgs, rust-overlay, flake-utils }:
+  outputs = { nixpkgs, rust-overlay, flake-utils, ... }:
     flake-utils.lib.eachDefaultSystem (system:
       let
-        overlays = [ (import rust-overlay) ];
-        pkgs = import nixpkgs { inherit system overlays; };
-
-        # Pin a specific Rust toolchain via rust-toolchain.toml, or define one inline.
-        rustToolchain = pkgs.rust-bin.stable.latest.default.override {
-          extensions = [ "rust-src" "rust-analyzer" "clippy" ];
+        pkgs = import nixpkgs {
+          inherit system;
+          overlays = [ rust-overlay.overlays.default ];
         };
 
-        # Vulkan + windowing native dependencies required by Vulkano.
-        nativeBuildInputs = with pkgs; [
-          rustToolchain
-          pkg-config
-          cmake          # some Vulkano transitive deps need it
-        ];
-
-        buildInputs = with pkgs; [
-          # Vulkan loader & validation layers
-          vulkan-loader
-          vulkan-headers
-          vulkan-validation-layers
-
-          # Wayland windowing stack (winit wayland feature)
-          wayland
-          wayland-protocols
-          libxkbcommon
-
-          # shaderc / SPIR-V tools (needed if you compile GLSL at runtime)
-          shaderc
-          spirv-tools
-        ];
-
-        # Point the dynamic linker at the Vulkan loader and Wayland libs.
-        LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath (with pkgs; [
-          vulkan-loader
-          wayland
-          libxkbcommon
-        ]);
-
-      in
-      {
-        # ── Development shell ────────────────────────────────────────────────
+        rustToolchain = pkgs.rust-bin.stable.latest.default.override {
+          extensions = [
+            "rust-src"
+            "rust-analyzer"
+            "clippy"
+          ];
+        };
+      in {
         devShells.default = pkgs.mkShell {
-          inherit nativeBuildInputs buildInputs;
+          packages = with pkgs; [
+            rustToolchain
 
-          # Environment variables consumed by build scripts / Vulkano.
-          VK_LAYER_PATH        = "${pkgs.vulkan-validation-layers}/share/vulkan/explicit_layer.d";
-          VULKAN_SDK           = "${pkgs.vulkan-headers}";
-          # Force winit to use the Wayland backend.
-          WINIT_UNIX_BACKEND   = "wayland";
-          inherit LD_LIBRARY_PATH;
+            pkg-config
+            cmake
+
+            vulkan-loader
+            vulkan-validation-layers
+            vulkan-headers
+
+            shaderc
+            spirv-tools
+
+            wayland
+            wayland-protocols
+            libxkbcommon
+
+            xorg.libX11
+            xorg.libXcursor
+            xorg.libXi
+            xorg.libXrandr
+          ];
+
+          VK_LAYER_PATH =
+            "${pkgs.vulkan-validation-layers}/share/vulkan/explicit_layer.d";
+	  SHADERC_LIB_DIR = "${pkgs.shaderc.lib}/lib";
+
+          LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath [
+            pkgs.vulkan-loader
+            pkgs.shaderc
+            pkgs.wayland
+            pkgs.libxkbcommon
+            pkgs.xorg.libX11
+          ];
 
           shellHook = ''
-            echo "🦀  Vulkano dev shell ready"
-            echo "Rust: $(rustc --version)"
+            echo "🦀 Vulkano development shell"
+            rustc --version
           '';
         };
-
-        # ── Package (optional: builds the default binary) ────────────────────
-        packages.default = (pkgs.makeRustPlatform {
-          cargo = rustToolchain;
-          rustc = rustToolchain;
-        }).buildRustPackage {
-          pname   = "vulkano-app";
-          version = "0.1.0";
-          src     = ./.;
-
-          cargoLock.lockFile = ./Cargo.lock;
-
-          inherit nativeBuildInputs buildInputs;
-          inherit LD_LIBRARY_PATH;
-
-          VK_LAYER_PATH      = "${pkgs.vulkan-validation-layers}/share/vulkan/explicit_layer.d";
-          VULKAN_SDK         = "${pkgs.vulkan-headers}";
-          WINIT_UNIX_BACKEND = "wayland";
-        };
-
-        # ── Apps shorthand ───────────────────────────────────────────────────
-        apps.default = flake-utils.lib.mkApp {
-          drv = self.packages.${system}.default;
-        };
-      }
-    );
+      });
 }

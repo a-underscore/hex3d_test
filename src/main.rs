@@ -102,7 +102,15 @@ fn main() {
 
         let light = em.add(true);
 
-        em.add_component(light, Light3::new(Vector3::new(1.0, 1.0, 1.0), 1.0, 256.0));
+        em.add_component(
+            light,
+            Light3::new(
+                Vector3::from([10.0; 3]),
+                Vector3::new(1.0, 1.0, 1.0),
+                1.0,
+                32.0,
+            ),
+        );
         em.add_component(
             light,
             Trans3::new(
@@ -114,7 +122,15 @@ fn main() {
 
         let light2 = em.add(true);
 
-        em.add_component(light2, Light3::new(Vector3::new(1.0, 1.0, 1.0), 1.0, 256.0));
+        em.add_component(
+            light2,
+            Light3::new(
+                Vector3::from([10.0; 3]),
+                Vector3::new(1.0, 1.0, 1.0),
+                1.0,
+                32.0,
+            ),
+        );
         em.add_component(
             light2,
             Trans3::new(
@@ -183,7 +199,8 @@ fn main() {
 
     let mut rm = RendererManager::default();
 
-    rm.add(LightRenderer);
+    rm.add(LightRenderer::new(&context.read().unwrap()).unwrap());
+    // rm.add(LightRenderer);
     // rm.add(ModelRenderer);
 
     let world = World::new(em, sm, rm, Vector3::new(1.0, 1.0, 1.0), 0.2);
