@@ -68,7 +68,7 @@ fn main() {
             .build(&ev)
             .unwrap(),
     );
-    let context = Context::lighting(
+    let context = Context::new(
         &ev,
         wb,
         PresentMode::Fifo,
@@ -169,7 +169,7 @@ fn main() {
         (verts, inds)
     };
 
-    let model = Model::lighting(
+    let model = Model::new(
         &context.read().unwrap(),
         Mesh::new(&context.read().unwrap(), &vertices, &indices).unwrap(),
         load_texture(&context.read().unwrap(), "texture.png").unwrap(),
@@ -199,13 +199,14 @@ fn main() {
 
     let mut rm = RendererManager::default();
 
-    rm.add(LightRenderer::new(&context.read().unwrap()).unwrap());
+    // rm.add(LightRenderer::new(&context.read().unwrap()).unwrap());
     // rm.add(LightRenderer);
-    // rm.add(ModelRenderer);
+
+    rm.add(ModelRenderer);
 
     let world = World::new(em, sm, rm, Vector3::new(1.0, 1.0, 1.0), 0.2);
 
-    Context::init(context, ev, world).unwrap();
+    ModelContext::init(context, ev, world).unwrap();
 }
 
 pub fn load_texture(context: &Context, path: &str) -> anyhow::Result<Texture> {
