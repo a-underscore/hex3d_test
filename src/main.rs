@@ -2,62 +2,62 @@ use crate::winit::event::Event;
 use hex::{
     assets::{Mesh, Texture, mesh::Vertex3},
     components::{Camera3, Light3, Model, Trans3},
+    context::Context3,
     nalgebra::*,
-    renderers::{LightRenderer, ModelRenderer},
-    threadpool::ThreadPool,
+    renderers::ModelRenderer,
     vulkano::{image::sampler::Sampler, swapchain::PresentMode},
     winit::{event::WindowEvent, event_loop::EventLoop, window::WindowBuilder},
-    world::{entity_manager::*, renderer_manager::*, system_manager::*},
+    world::entity_manager::*,
     *,
 };
 use image::{ImageFormat, ImageReader};
-use std::fs::File;
-use std::io::BufReader;
 use std::sync::{Arc, RwLock};
+use std::{cell::LazyCell, fs::File};
+use std::{io::BufReader, sync::LazyLock};
 
 struct Sys {
     pub last_frame: std::time::Instant,
 }
 
-impl System for Sys {
-    fn update(
-        &mut self,
-        ctrl: Arc<RwLock<Control>>,
-        _: Arc<RwLock<Context>>,
-        world: Arc<RwLock<World>>,
-    ) -> anyhow::Result<()> {
-        if matches!(
-            ctrl.read().unwrap().event,
-            Event::WindowEvent {
-                event: WindowEvent::RedrawRequested,
-                ..
-            }
-        ) {
-            let frame = std::time::Instant::now();
-            let delta = frame.duration_since(self.last_frame);
+fn update(
+    ctrl: Arc<RwLock<Control>>,
+    _: Arc<RwLock<Context3>>,
+    world: Arc<RwLock<World>>,
+) -> anyhow::Result<()> {
+    static LAST_FRAME: LazyLock<RwLock<std::time::Instant>> =
+        LazyLock::new(|| RwLock::new(std::time::Instant::now()));
 
-            self.last_frame = frame;
-
-            let em = world.read().unwrap().em.clone();
-
-            em.read()
-                .unwrap()
-                .entities()
-                .filter(|e| em.read().unwrap().get_component::<Model>(*e).is_some())
-                .for_each(|e| {
-                    if let Some(transform) = em.read().unwrap().get_component::<Trans3>(e) {
-                        let transform = &mut *transform.write().unwrap();
-
-                        transform.set_rotation(
-                            transform.rotation()
-                                + Vector3::new(1.0, 1.0, 1.0) * delta.as_secs_f32(),
-                        );
-                    }
-                });
+    if matches!(
+        ctrl.read().unwrap().event,
+        Event::WindowEvent {
+            event: WindowEvent::RedrawRequested,
+            ..
         }
+    ) {
+        let mut last_frame = LAST_FRAME.write().unwrap();
+        let frame = std::time::Instant::now();
+        let delta = frame.duration_since(*last_frame);
 
-        Ok(())
+        *LAST_FRAME.write().unwrap() = frame;
+
+        let em = world.read().unwrap().em.clone();
+
+        em.read()
+            .unwrap()
+            .entities()
+            .filter(|e| em.read().unwrap().get_component::<Model>(*e).is_some())
+            .for_each(|e| {
+                if let Some(transform) = em.read().unwrap().get_component::<Trans3>(e) {
+                    let transform = &mut *transform.write().unwrap();
+
+                    transform.set_rotation(
+                        transform.rotation() + Vector3::new(1.0, 1.0, 1.0) * delta.as_secs_f32(),
+                    );
+                }
+            });
     }
+
+    Ok(())
 }
 
 fn main() {
@@ -68,14 +68,8 @@ fn main() {
             .build(&ev)
             .unwrap(),
     );
-    let context = Context::new(
-        &ev,
-        wb,
-        PresentMode::Fifo,
-        ThreadPool::new(num_cpus::get() / 2),
-        Vector4::new(0.0, 0.0, 0.0, 1.0),
-    )
-    .unwrap();
+    let context =
+        Context3::new(&ev, wb, PresentMode::Fifo, Vector4::new(0.0, 0.0, 0.0, 1.0)).unwrap();
     let em: Arc<RwLock<EntityManager>> = EntityManager::new();
     let mut sm = SystemManager::new();
 
@@ -109,7 +103,9 @@ fn main() {
                 Vector3::new(1.0, 1.0, 1.0),
                 1.0,
                 32.0,
-            ),
+                &context.read().unwrap(),
+            )
+            .unwrap(),
         );
         em.add_component(
             light,
@@ -129,7 +125,9 @@ fn main() {
                 Vector3::new(1.0, 1.0, 1.0),
                 1.0,
                 32.0,
-            ),
+                &context.read().unwrap(),
+            )
+            .unwrap(),
         );
         em.add_component(
             light2,
@@ -170,10 +168,10 @@ fn main() {
     };
 
     let model = Model::new(
-        &context.read().unwrap(),
-        Mesh::new(&context.read().unwrap(), &vertices, &indices).unwrap(),
+        Mesh::new(&vertices, &indices, &context.read().unwrap()).unwrap(),
         load_texture(&context.read().unwrap(), "texture.png").unwrap(),
         Vector4::new(1.0, 1.0, 1.0, 1.0),
+        &context.read().unwrap(),
     )
     .unwrap();
 
@@ -197,19 +195,30 @@ fn main() {
         em.add_component(e, model.clone());
     }
 
-    let mut rm = RendererManager::default();
-
-    // rm.add(LightRenderer::new(&context.read().unwrap()).unwrap());
-    // rm.add(LightRenderer);
-
-    rm.add(ModelRenderer);
-
-    let world = World::new(em, sm, rm, Vector3::new(1.0, 1.0, 1.0), 0.2);
-
-    ModelContext::init(context, ev, world).unwrap();
+    init(context, event_loop, world);
 }
 
-pub fn load_texture(context: &Context, path: &str) -> anyhow::Result<Texture> {
+pub fn init(
+    context: Arc<RwLock<Self>>,
+    event_loop: EventLoop<()>,
+    world: Arc<RwLock<World>>,
+) -> anyhow::Result<()> {
+    let mut recreate_swapchain = false;
+
+    event_loop.run(move |event, elwt| {
+        Self::update(
+            context.clone(),
+            world.clone(),
+            Control::new(event),
+            (elwt, &mut recreate_swapchain),
+        )
+        .unwrap();
+    })?;
+
+    Ok(())
+}
+
+pub fn load_texture(path: &str, context: &Context3) -> anyhow::Result<Texture> {
     let mut img = ImageReader::open(path)?;
 
     img.set_format(ImageFormat::Png);
