@@ -23,6 +23,7 @@ fn update(
     ctrl: Arc<RwLock<Control>>,
     _: Arc<RwLock<Context3>>,
     world: Arc<RwLock<World>>,
+    _recreate_swapchain: &mut bool,
 ) -> anyhow::Result<()> {
     static LAST_FRAME: LazyLock<RwLock<std::time::Instant>> =
         LazyLock::new(|| RwLock::new(std::time::Instant::now()));
@@ -38,7 +39,7 @@ fn update(
         let frame = std::time::Instant::now();
         let delta = frame.duration_since(*last_frame);
 
-        *LAST_FRAME.write().unwrap() = frame;
+        *last_frame = frame;
 
         let em = world.read().unwrap().em.clone();
 
@@ -71,14 +72,6 @@ fn main() {
     let context =
         Context3::new(&ev, wb, PresentMode::Fifo, Vector4::new(0.0, 0.0, 0.0, 1.0)).unwrap();
     let em: Arc<RwLock<EntityManager>> = EntityManager::new();
-    let mut sm = SystemManager::new();
-
-    sm.add(
-        0,
-        Sys {
-            last_frame: std::time::Instant::now(),
-        },
-    );
 
     {
         let mut em = em.write().unwrap();
@@ -169,7 +162,7 @@ fn main() {
 
     let model = Model::new(
         Mesh::new(&vertices, &indices, &context.read().unwrap()).unwrap(),
-        load_texture(&context.read().unwrap(), "texture.png").unwrap(),
+        load_texture("texture.png", &context.read().unwrap()).unwrap(),
         Vector4::new(1.0, 1.0, 1.0, 1.0),
         &context.read().unwrap(),
     )
@@ -194,28 +187,6 @@ fn main() {
 
         em.add_component(e, model.clone());
     }
-
-    init(context, event_loop, world);
-}
-
-pub fn init(
-    context: Arc<RwLock<Self>>,
-    event_loop: EventLoop<()>,
-    world: Arc<RwLock<World>>,
-) -> anyhow::Result<()> {
-    let mut recreate_swapchain = false;
-
-    event_loop.run(move |event, elwt| {
-        Self::update(
-            context.clone(),
-            world.clone(),
-            Control::new(event),
-            (elwt, &mut recreate_swapchain),
-        )
-        .unwrap();
-    })?;
-
-    Ok(())
 }
 
 pub fn load_texture(path: &str, context: &Context3) -> anyhow::Result<Texture> {
@@ -228,5 +199,5 @@ pub fn load_texture(path: &str, context: &Context3) -> anyhow::Result<Texture> {
     let img = img.into_raw();
     let sampler = Sampler::new(context.device.clone(), Default::default()).unwrap();
 
-    Ok(Texture::new(context, sampler, &img, dims.0, dims.1).unwrap())
+    Ok(Texture::new(sampler, &img, dims.0, dims.1, context).unwrap())
 }
