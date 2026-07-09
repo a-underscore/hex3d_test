@@ -19,12 +19,7 @@ struct Sys {
     pub last_frame: std::time::Instant,
 }
 
-fn update(
-    ctrl: Arc<RwLock<Control>>,
-    _: Arc<RwLock<Context3>>,
-    world: Arc<RwLock<World>>,
-    _recreate_swapchain: &mut bool,
-) -> anyhow::Result<()> {
+fn update(ctrl: Arc<RwLock<Control>>, world: Arc<RwLock<World>>) -> anyhow::Result<()> {
     static LAST_FRAME: LazyLock<RwLock<std::time::Instant>> =
         LazyLock::new(|| RwLock::new(std::time::Instant::now()));
 
@@ -187,6 +182,37 @@ fn main() {
 
         em.add_component(e, model.clone());
     }
+
+    let world = world::World::new(
+        world::entity_manager::EntityManager::new(),
+        Vector3::new(0.1, 0.1, 0.1),
+        32.0,
+    );
+    let event_loop = EventLoop::new().unwrap();
+    let mut model_renderer =
+        ModelRenderer::new(Vector4::new(0.0, 0.0, 0.0, 1.0), &context.read().unwrap()).unwrap();
+
+    Context3::init(
+        context,
+        world,
+        event_loop,
+        move |context: Arc<RwLock<Context3>>,
+              world: Arc<RwLock<World>>,
+              ctrl: Arc<RwLock<Control>>,
+              recreate_swapchain: &mut bool| {
+            update(ctrl.clone(), world.clone())?;
+
+            model_renderer.draw(
+                context.clone(),
+                world.clone(),
+                ctrl.clone(),
+                recreate_swapchain,
+            )?;
+
+            Ok(())
+        },
+    )
+    .unwrap();
 }
 
 pub fn load_texture(path: &str, context: &Context3) -> anyhow::Result<Texture> {
