@@ -12,7 +12,7 @@ use hex::{
 };
 use image::{ImageFormat, ImageReader};
 use std::sync::{Arc, RwLock};
-use std::{cell::LazyCell, fs::File};
+use std::fs::File;
 use std::{io::BufReader, sync::LazyLock};
 
 struct Sys {
@@ -141,7 +141,7 @@ fn main() {
 
                     v.normal
                 },
-                color: <[f32; 4]>::from(Vector4::new(1.0, 1.0, 1.0, 1.0)).into(),
+                color: <[f32; 4]>::from(Vector4::new(1.0, 1.0, 1.0, 1.0)),
                 uv: Vector2::new(v.texture[0], v.texture[1]).into(),
             })
             .collect::<Vec<_>>();
@@ -163,7 +163,7 @@ fn main() {
     )
     .unwrap();
 
-    for i in 0..50_000 {
+    for _i in 0..50_000 {
         let mut em = em.write().unwrap();
         let e = em.add(true);
 
