@@ -28,8 +28,11 @@
           ];
         };
       in {
+        RUSTFLAGS = "-C debuginfo=2";
         devShells.default = pkgs.mkShell {
           packages = with pkgs; [
+	    gdb
+
 	    gcc
             rustToolchain
 

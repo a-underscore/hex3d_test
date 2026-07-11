@@ -11,8 +11,8 @@ use hex::{
     *,
 };
 use image::{ImageFormat, ImageReader};
-use std::sync::{Arc, RwLock};
 use std::fs::File;
+use std::sync::{Arc, RwLock};
 use std::{io::BufReader, sync::LazyLock};
 
 struct Sys {
@@ -30,13 +30,12 @@ fn update(ctrl: Arc<RwLock<Control>>, world: Arc<RwLock<World>>) -> anyhow::Resu
             ..
         }
     ) {
+        let em = world.read().unwrap().em.clone();
         let mut last_frame = LAST_FRAME.write().unwrap();
         let frame = std::time::Instant::now();
         let delta = frame.duration_since(*last_frame);
 
         *last_frame = frame;
-
-        let em = world.read().unwrap().em.clone();
 
         em.read()
             .unwrap()
@@ -67,6 +66,8 @@ fn main() {
     let context =
         Context3::new(&ev, wb, PresentMode::Fifo, Vector4::new(0.0, 0.0, 0.0, 1.0)).unwrap();
     let em: Arc<RwLock<EntityManager>> = EntityManager::new();
+    let mut model_renderer =
+        ModelRenderer::new(Vector4::new(0.0, 0.0, 0.0, 1.0), &context.read().unwrap()).unwrap();
 
     {
         let mut em = em.write().unwrap();
@@ -92,6 +93,7 @@ fn main() {
                 1.0,
                 32.0,
                 &context.read().unwrap(),
+                &model_renderer.read().unwrap(),
             )
             .unwrap(),
         );
@@ -114,6 +116,7 @@ fn main() {
                 1.0,
                 32.0,
                 &context.read().unwrap(),
+                &model_renderer.read().unwrap(),
             )
             .unwrap(),
         );
@@ -160,10 +163,11 @@ fn main() {
         load_texture("texture.png", &context.read().unwrap()).unwrap(),
         Vector4::new(1.0, 1.0, 1.0, 1.0),
         &context.read().unwrap(),
+        &model_renderer.read().unwrap(),
     )
     .unwrap();
 
-    for _i in 0..50_000 {
+    for _i in 0..5 {
         let mut em = em.write().unwrap();
         let e = em.add(true);
 
@@ -183,31 +187,36 @@ fn main() {
         em.add_component(e, model.clone());
     }
 
-    let world = world::World::new(
-        world::entity_manager::EntityManager::new(),
-        Vector3::new(0.1, 0.1, 0.1),
-        32.0,
-    );
-    let event_loop = EventLoop::new().unwrap();
+    let world = world::World::new(em.clone(), Vector3::new(0.1, 0.1, 0.1), 32.0);
     let mut model_renderer =
         ModelRenderer::new(Vector4::new(0.0, 0.0, 0.0, 1.0), &context.read().unwrap()).unwrap();
 
     Context3::init(
         context,
         world,
-        event_loop,
+        ev,
         move |context: Arc<RwLock<Context3>>,
               world: Arc<RwLock<World>>,
               ctrl: Arc<RwLock<Control>>,
               recreate_swapchain: &mut bool| {
             update(ctrl.clone(), world.clone())?;
 
-            model_renderer.draw(
-                context.clone(),
-                world.clone(),
-                ctrl.clone(),
-                recreate_swapchain,
-            )?;
+            if matches!(
+                ctrl.read().unwrap().event,
+                Event::WindowEvent {
+                    event: WindowEvent::RedrawRequested,
+                    ..
+                }
+            ) {
+                ModelRenderer::draw(
+                    model_renderer.clone(),
+                    context.clone(),
+                    world.clone(),
+                    ctrl.clone(),
+                    recreate_swapchain,
+                )
+                .unwrap();
+            }
 
             Ok(())
         },
