@@ -140,7 +140,7 @@ fn main() {
             .map(|v| Vertex3 {
                 position: v.position,
                 normal: {
-                    println!("{:?}", v.normal);
+                    //println!("{:?}", v.normal);
 
                     v.normal
                 },
@@ -208,14 +208,15 @@ fn main() {
                     ..
                 }
             ) {
-                ModelRenderer::draw(
+                let err = ModelRenderer::draw(
                     model_renderer.clone(),
                     context.clone(),
                     world.clone(),
                     ctrl.clone(),
                     recreate_swapchain,
-                )
-                .unwrap();
+                );
+
+                err.unwrap();
             }
 
             Ok(())
