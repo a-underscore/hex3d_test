@@ -32,7 +32,6 @@ fn update(ctrl: Arc<RwLock<Control>>, world: Arc<RwLock<World>>) -> anyhow::Resu
         let delta = frame.duration_since(*last_frame);
 
         *last_frame = frame;
-
         em.read()
             .unwrap()
             .entities()
@@ -73,7 +72,7 @@ fn main() {
         em.add_component(
             camera,
             Trans3::new(
-                Vector3::new(0.0, 0.0, -10.0),
+                Vector3::new(-10.0, 0.0, -50.0),
                 Vector3::zeros(),
                 Vector3::new(1.0, 1.0, 1.0),
             ),
@@ -85,9 +84,9 @@ fn main() {
             light,
             Light3::new(
                 Vector3::from([10.0; 3]),
-                Vector3::new(0.1, 0.1, 0.1),
-                1.0,
-                256.0,
+                Vector3::new(0.5, 0.5, 0.5),
+                0.5,
+                128.0,
                 &context.read().unwrap(),
                 &model_renderer.read().unwrap(),
             )
@@ -164,7 +163,7 @@ fn main() {
     )
     .unwrap();
 
-    for _i in 0..5 {
+    for _i in 0..1 {
         let mut em = em.write().unwrap();
         let e = em.add(true);
 
@@ -172,15 +171,30 @@ fn main() {
             e,
             Trans3::new(
                 Vector3::new(
-                    (5 * rand::random_range(-10..10)) as f32,
-                    (5 * rand::random_range(-10..10)) as f32,
-                    (5 * rand::random_range(-10..10)) as f32 - 100.0,
+                    (rand::random_range(-10..10)) as f32,
+                    (rand::random_range(-10..10)) as f32,
+                    (rand::random_range(-10..10)) as f32 - 50.0,
                 ),
                 Vector3::zeros(),
                 Vector3::new(5.0, 5.0, 5.0),
             ),
         );
 
+        em.add_component(e, model.clone());
+    }
+
+    {
+        let mut em = em.write().unwrap();
+        let e = em.add(true);
+
+        em.add_component(
+            e,
+            Trans3::new(
+                Vector3::new(0.0, 0.0, -600.0),
+                Vector3::zeros(),
+                Vector3::new(50.0, 50.0, 50.0),
+            ),
+        );
         em.add_component(e, model.clone());
     }
 
