@@ -50,10 +50,10 @@
             wayland-protocols
             libxkbcommon
 
-            xorg.libX11
-            xorg.libXcursor
-            xorg.libXi
-            xorg.libXrandr
+            libX11
+            libXcursor
+            libXi
+            libXrandr
           ];
 
           VK_LAYER_PATH =
@@ -65,7 +65,7 @@
             pkgs.shaderc
             pkgs.wayland
             pkgs.libxkbcommon
-            pkgs.xorg.libX11
+            pkgs.libX11
           ];
 
           shellHook = ''

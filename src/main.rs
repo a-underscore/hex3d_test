@@ -15,10 +15,6 @@ use std::fs::File;
 use std::sync::{Arc, RwLock};
 use std::{io::BufReader, sync::LazyLock};
 
-struct Sys {
-    pub last_frame: std::time::Instant,
-}
-
 fn update(ctrl: Arc<RwLock<Control>>, world: Arc<RwLock<World>>) -> anyhow::Result<()> {
     static LAST_FRAME: LazyLock<RwLock<std::time::Instant>> =
         LazyLock::new(|| RwLock::new(std::time::Instant::now()));
@@ -59,7 +55,7 @@ fn main() {
     let ev = EventLoop::new().unwrap();
     let wb = Arc::new(
         WindowBuilder::new()
-            .with_title("Paraselene Reimagined")
+            .with_title("Hex Test")
             .build(&ev)
             .unwrap(),
     );
@@ -89,9 +85,9 @@ fn main() {
             light,
             Light3::new(
                 Vector3::from([10.0; 3]),
-                Vector3::new(1.0, 1.0, 1.0),
+                Vector3::new(0.1, 0.1, 0.1),
                 1.0,
-                32.0,
+                256.0,
                 &context.read().unwrap(),
                 &model_renderer.read().unwrap(),
             )
@@ -100,12 +96,13 @@ fn main() {
         em.add_component(
             light,
             Trans3::new(
-                Vector3::new(-100.0, 0.0, -50.0),
+                Vector3::new(-0.0, 0.0, -0.0),
                 Vector3::zeros(),
                 Vector3::new(1.0, 1.0, 1.0),
             ),
         );
 
+        /*
         let light2 = em.add(true);
 
         em.add_component(
@@ -127,7 +124,7 @@ fn main() {
                 Vector3::zeros(),
                 Vector3::new(1.0, 1.0, 1.0),
             ),
-        );
+        );*/
     }
 
     let (vertices, indices) = {
@@ -175,9 +172,9 @@ fn main() {
             e,
             Trans3::new(
                 Vector3::new(
-                    (5 * rand::random_range(-100..100)) as f32,
-                    (5 * rand::random_range(-100..100)) as f32,
-                    (5 * rand::random_range(-100..100)) as f32 - 100.0,
+                    (5 * rand::random_range(-10..10)) as f32,
+                    (5 * rand::random_range(-10..10)) as f32,
+                    (5 * rand::random_range(-10..10)) as f32 - 100.0,
                 ),
                 Vector3::zeros(),
                 Vector3::new(5.0, 5.0, 5.0),
@@ -187,9 +184,7 @@ fn main() {
         em.add_component(e, model.clone());
     }
 
-    let world = world::World::new(em.clone(), Vector3::new(0.1, 0.1, 0.1), 32.0);
-    let mut model_renderer =
-        ModelRenderer::new(Vector4::new(0.0, 0.0, 0.0, 1.0), &context.read().unwrap()).unwrap();
+    let world = world::World::new(em.clone(), Vector3::new(0.1, 0.1, 0.1), 1.0);
 
     Context3::init(
         context,
